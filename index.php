@@ -56,31 +56,35 @@ if (isset($_REQUEST['res'])) {
 	$table = $response->fetch();
 	$message = '@' . $table['name'] . ' ' . $table['message'];
 }
-
 //いいね機能
 
 //いいね重複検証
-$good = $db ->prepare('SELECT COUNT(*) AS count FROM good WHERE user_id=? AND post_id=?');
-$good ->execute(array($_POST['user_id'],$_POST['post_id']));
-$good_count= $good->fetch();
-if($good_count['count'] > 0) {
-	$icon['user_id'] = 'change';
+	$messa = $db->prepare('SELECT * FROM posts WHERE id=?');
+	$messa->execute(array($_REQUEST['id']));
+	$messas = $messa->fetch();
+if (isset($_REQUEST['good'])) {
+	$post_id = $_REQUEST['good'];
+	$check = $db->prepare('SELECT COUNT(*) AS count FROM good WHERE good_user_id=? AND good_post_id=?');
+	$check->execute(array($member['id'],$post_id));
+	$good_count= $check->fetch();
 }
+
 //データベースにいいね登録
-if (!empty($_POST)) {
-	if ($good_count['count'] > 0) {
-		$nice = $db->prepare('INSERT INTO good SET user_id=?,post_id=?');
+if (!empty($_REQUEST['good'])) {
+	if ($good_count > 0) {
+		$nice = $db->prepare('INSERT INTO good SET good_user_id=?,good_post_id=?');
 		$nice->execute(array(
-			$member['id'],
-			$posts['id'],
+		  $member['id'],
+			$message['id'],
 		));
 		header('Location: index.php'); exit();
 	} else {
-		$nice = $db->prepare('DELETE FROM good WHERE user_id=?,post_id=?');
+		$nice = $db->prepare('DELETE FROM good WHERE good_user_id=?,good_post_id=?');
 		$nice->execute(array(
 			$member['id'],
-			$posts['id'],
+			$message['id'],
 		));
+		header('Location: index.php'); exit();
 	}
 }
 
@@ -143,16 +147,15 @@ function makeLink($value) {
 					[<a href="delete.php?id=<?php echo h($post['id']); ?>" style="color:#F33;">削除</a>]
 					<?php endif; ?>
 					</p>
-					</div>
 
 					<form action="" method="post">
 						<dd>
-							<?php if ($icon['user_id'] == 'change'): ?>
-							<input type="hidden" name="good" value="like">
-							<input type="image" src=images/normal.png width="20" height="20"><p>3</p>
+							<?php if ($good_count > 0): ?>
+                <input type="hidden" value="">
+								<input type="image" src=images/good.png width="20" height="20" name="good"><p>3</p>
 							<?php else : ?>
-								<input type="hidden" name="good" value="like">
-								<input type="image" src=images/good.png width="20" height="20"><p>3</p>
+                <input type="hidden" value="">
+								<input type="image" src=images/normal.png width="20" height="20" name="good"><p >3</p>
 							<?php endif; ?>
 						</dd>
 					</form>
