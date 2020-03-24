@@ -15,8 +15,10 @@ if (isset($_SESSION['id']) && $_SESSION['time'] + 3600 > time()) {
 }
 
 // 投稿を記録する
+$message="";
 if (!empty($_POST)) {
 	if ($_POST['message'] != '') {
+		if (isset($_REQUEST['res'])) {
 		$message = $db->prepare('INSERT INTO posts SET member_id=?, message=?, reply_post_id=?, created=NOW()');
 		$message->execute(array(
 			$member['id'],
@@ -25,15 +27,29 @@ if (!empty($_POST)) {
 		));
 
 		header('Location: index.php'); exit();
+	} else {
+		$message = $db->prepare('INSERT INTO posts SET member_id=?, message=?, created=NOW()');
+		$message->execute(array(
+			$member['id'],
+			$_POST['message']
+		));
+
+		header('Location: index.php'); exit();
+		}
 	}
 }
 
 // 投稿を取得する
+if (isset($_REQUEST['page'])) {
 $page = $_REQUEST['page'];
 if ($page == '') {
 	$page = 1;
 }
 $page = max($page, 1);
+} else {
+ $page= 1;
+}
+
 
 // 最終ページを取得する
 $counts = $db->query('SELECT COUNT(*) AS cnt FROM posts');
@@ -58,37 +74,54 @@ if (isset($_REQUEST['res'])) {
 }
 //いいね機能
 
-//いいね重複検証
-	$messa = $db->prepare('SELECT * FROM posts WHERE id=?');
-	$messa->execute(array($_REQUEST['id']));
-	$messas = $messa->fetch();
-if (isset($_REQUEST['good'])) {
-	$post_id = $_REQUEST['good'];
+if (!empty($_POST)) {
+	//いいね重複検査
 	$check = $db->prepare('SELECT COUNT(*) AS count FROM good WHERE good_user_id=? AND good_post_id=?');
-	$check->execute(array($member['id'],$post_id));
-	$good_count= $check->fetch();
-}
+	$check->execute(array($member['id'],$_POST['good']));
+	$duplicate= $check->fetch();
 
-//データベースにいいね登録
-if (!empty($_REQUEST['good'])) {
-	if ($good_count > 0) {
-		$nice = $db->prepare('INSERT INTO good SET good_user_id=?,good_post_id=?');
-		$nice->execute(array(
-		  $member['id'],
-			$message['id'],
-		));
-		header('Location: index.php'); exit();
-	} else {
-		$nice = $db->prepare('DELETE FROM good WHERE good_user_id=?,good_post_id=?');
-		$nice->execute(array(
-			$member['id'],
-			$message['id'],
-		));
-		header('Location: index.php'); exit();
+	if ($_POST['good'] != '') {
+	  if($duplicate['count'] > 0) {
+			$good = $db->prepare('DELETE FROM good WHERE good_user_id=? AND good_post_id=?');
+			$good->execute(array($member['id'],$_POST['good']));
+
+			header('Location: index.php'); exit();
+		} else {
+			$good = $db->prepare('INSERT INTO good SET good_user_id=?, good_post_id=?');
+			$good->execute(array($member['id'],$_POST['good']));
+
+			header('Location: index.php'); exit();
+		}
 	}
 }
 
 //いいね機能終わり
+
+//リツイート初め
+if (isset($_REQUEST['rep'])) {
+	$repost = $db->prepare('SELECT * FROM posts WHERE id=?');
+	$repost->execute(array($_REQUEST['rep']));
+	$rep = $repost->fetch();
+
+	if ($rep['re_post'] == 1){
+		$remessage = $db->prepare('DELETE FROM posts WHERE id=?');
+		$remessage->execute(array($rep['id']));
+
+		header('Location: index.php'); exit();
+
+	}	else {
+		$remessage = $db->prepare('INSERT INTO posts SET member_id=?, message=?, reply_post_id=?,re_post=?,created=NOW()');
+		$remessage->execute(array(
+			$member['id'],
+			$rep['message'],
+			$rep['reply_post_id'],
+			1
+	));
+
+	header('Location: index.php'); exit();
+	}
+}
+
 
 // htmlspecialcharsのショートカット
 function h($value) {
@@ -100,7 +133,6 @@ function makeLink($value) {
 	return mb_ereg_replace("(https?)(://[[:alnum:]\+\$\;\?\.%,!#~*/:@&=_-]+)", '<a href="\1\2">\1\2</a>' , $value);
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -108,6 +140,7 @@ function makeLink($value) {
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta http-equiv="X-UA-Compatible" content="ie=edge">
 	<title>ひとこと掲示板</title>
+
 	<link rel="stylesheet" href="style.css" />
 </head>
 
@@ -120,25 +153,35 @@ function makeLink($value) {
 			<div style="text-align: right"><a href="logout.php">ログアウト</a></div>
 			<form action="" method="post">
 				<dl>
-					<dt><?php echo htmlspecialchars($member['name']); ?>さん、メッセージをどうぞ</dt>
-				<dd>
-					<textarea name="message" cols="50" rows="5"><?php echo h($message); ?></textarea>
-					<input type="hidden" name="reply_post_id" value="<?php echo h($_REQUEST['res']); ?>" />
-				</dd>
-				</dl>
-				<div>
-					<input type="submit" value="投稿する" />
-				</div>
-			</form>
+					<dt><?php echo h($member['name']); ?>さん、メッセージをどうぞ</dt>
+	        <dd>
+	          <textarea name="message" cols="50" rows="5"><?php echo h($message); ?></textarea>
+						<?php if(isset($_REQUEST['res'])):?>
+	          	<input type="hidden" name="reply_post_id" value="<?php echo h($_REQUEST['res']); ?>" />
+						<?php endif; ?>
+	        </dd>
+	      </dl>
+	      <div>
+	        <p>
+	          <input type="submit" value="投稿する" />
+	        </p>
+	      </div>
+	    </form>
 
 	<?php
 	foreach($posts as $post):
 	?>
 			<div class="msg">
+				<?php
+				if ($post['re_post'] == 1): ?>
+				<p><?php echo h($post['name']); ?>さんがリツイートしました。</p>
+				<?php endif; ?>
 				<img src="member_picture/<?php echo h($post['picture']); ?>" width="48" height="48" alt="<?php echo h($post['name']); ?>" />
 					<p><?php echo makeLink(h($post['message']));?>
 						<span class="name">（<?php echo h($post['name']); ?>）</span>
-						[<a href="index.php?res=<?php echo h($post['id']); ?>">Re</a>]</p>
+						[<a href="index.php?res=<?php echo h($post['id']); ?>">Re</a>]
+						<a href="index.php?rep=<?php echo h($post['id']); ?>"><img src="images/repost.png" weight="20" height="20"></a>
+					</p>
 					<p class="day"><a href="view.php?id=<?php echo h($post['id']); ?>"><?php echo h($post['created']); ?></a>
 					<?php if ($post['reply_post_id'] > 0): ?>
 					<a href="view.php?id=<?php echo h($post['reply_post_id']); ?>">返信元のメッセージ</a>
@@ -148,16 +191,24 @@ function makeLink($value) {
 					<?php endif; ?>
 					</p>
 
+					<p><?php
+					$points = $db->prepare('SELECT COUNT(*) AS sum FROM good WHERE good_post_id=?');
+					$points->execute(array($post['id']));
+					$point= $points->fetch();
+							echo h($point['sum']); ?></p>
+
 					<form action="" method="post">
-						<dd>
-							<?php if ($good_count > 0): ?>
-                <input type="hidden" value="">
-								<input type="image" src=images/good.png width="20" height="20" name="good"><p>3</p>
-							<?php else : ?>
-                <input type="hidden" value="">
-								<input type="image" src=images/normal.png width="20" height="20" name="good"><p >3</p>
+						<?php
+							$check = $db->prepare('SELECT COUNT(*) AS count FROM good WHERE good_user_id=? AND good_post_id=?');
+							$check->execute(array($member['id'],$post['id']));
+							$duplicate= $check->fetch();
+						if($duplicate['count'] > 0): ?>
+								<input type="hidden" name="good" value="<?php echo h($post['id']); ?>">
+								<input type="image" src="images/good.png" weight="20" height="20">
+							<?php else: ?>
+								<input type="hidden" name="good" value="<?php echo h($post['id']); ?>">
+								<input type="image" src="images/normal.png" weight="20" height="20">
 							<?php endif; ?>
-						</dd>
 					</form>
 
 			</div>
@@ -191,7 +242,6 @@ function makeLink($value) {
 			?>
 			</ul>
 	  </div>
-
 	</div>
 </body>
 </html>
