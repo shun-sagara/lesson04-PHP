@@ -209,7 +209,7 @@ function makeLink($value) {
 
 					<form action="" method="post">
 						<?php
-						if($post['good_count'] > 0): ?>
+						if($duplicate['count'] > 0): ?>
 								<input type="hidden" name="good" value="<?php echo h($post['id']); ?>">
 								<input type="image" src="images/good.png" weight="20" height="20">
 							<?php else: ?>
