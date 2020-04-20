@@ -85,10 +85,24 @@ if (!empty($_POST)) {
 			$good = $db->prepare('DELETE FROM good WHERE good_user_id=? AND good_post_id=?');
 			$good->execute(array($member['id'],$_POST['good']));
 
+			$points = $db->prepare('SELECT COUNT(*) AS sum FROM good WHERE good_post_id=?');
+			$points->execute(array($_POST['good']));
+			$point= $points->fetch();
+
+			$good_counts = $db->prepare('UPDATE posts SET good_count=? where id=?');
+			$good_counts->execute(array($point['sum'],$_POST['good']));
+
 			header('Location: index.php'); exit();
 		} else {
 			$good = $db->prepare('INSERT INTO good SET good_user_id=?, good_post_id=?');
 			$good->execute(array($member['id'],$_POST['good']));
+
+			$points = $db->prepare('SELECT COUNT(*) AS sum FROM good WHERE good_post_id=?');
+			$points->execute(array($_POST['good']));
+			$point= $points->fetch();
+
+			$good_counts = $db->prepare('UPDATE posts SET good_count=? where id=?');
+			$good_counts->execute(array($point['sum'],$_POST['good']));
 
 			header('Location: index.php'); exit();
 		}
@@ -103,22 +117,22 @@ if (isset($_REQUEST['rep'])) {
 	$repost->execute(array($_REQUEST['rep']));
 	$rep = $repost->fetch();
 
-	if ($rep['re_post'] == 1){
+	if ($rep['re_post'] > 0){
 		$remessage = $db->prepare('DELETE FROM posts WHERE id=?');
 		$remessage->execute(array($rep['id']));
 
 		header('Location: index.php'); exit();
 
 	}	else {
-		$remessage = $db->prepare('INSERT INTO posts SET member_id=?, message=?, reply_post_id=?,re_post=?,created=NOW()');
+		$remessage = $db->prepare('INSERT INTO posts SET member_id=?, message=?, reply_post_id=?,re_post=?,good_count=?,created=NOW()');
 		$remessage->execute(array(
 			$member['id'],
 			$rep['message'],
 			$rep['reply_post_id'],
-			1
+			$_REQUEST['rep'],
+			$rep['good_count']
 	));
 
-	header('Location: index.php'); exit();
 	}
 }
 
@@ -173,7 +187,7 @@ function makeLink($value) {
 	?>
 			<div class="msg">
 				<?php
-				if ($post['re_post'] == 1): ?>
+				if ($post['re_post'] > 0): ?>
 				<p><?php echo h($post['name']); ?>さんがリツイートしました。</p>
 				<?php endif; ?>
 				<img src="member_picture/<?php echo h($post['picture']); ?>" width="48" height="48" alt="<?php echo h($post['name']); ?>" />
@@ -191,18 +205,11 @@ function makeLink($value) {
 					<?php endif; ?>
 					</p>
 
-					<p><?php
-					$points = $db->prepare('SELECT COUNT(*) AS sum FROM good WHERE good_post_id=?');
-					$points->execute(array($post['id']));
-					$point= $points->fetch();
-							echo h($point['sum']); ?></p>
+					<p><?php echo h($post['good_count']); ?></p>
 
 					<form action="" method="post">
 						<?php
-							$check = $db->prepare('SELECT COUNT(*) AS count FROM good WHERE good_user_id=? AND good_post_id=?');
-							$check->execute(array($member['id'],$post['id']));
-							$duplicate= $check->fetch();
-						if($duplicate['count'] > 0): ?>
+						if($post['good_count'] > 0): ?>
 								<input type="hidden" name="good" value="<?php echo h($post['id']); ?>">
 								<input type="image" src="images/good.png" weight="20" height="20">
 							<?php else: ?>
