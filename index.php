@@ -81,7 +81,7 @@ if (!empty($_POST)) {
 	$re_p = $re_check->fetch();
 
 	if ($_POST['good'] != '') {
-		if($re_p['re_post'] > 0) {
+		if ($re_p['re_post'] > 0) {
 			$check = $db->prepare('SELECT COUNT(*) AS count FROM good WHERE good_user_id=? AND good_post_id=?');
 			$check->execute(array($member['id'],$re_p['re_post']));
 			$duplicate = $check->fetch();
@@ -125,9 +125,9 @@ if (!empty($_POST)) {
 
 			$check = $db->prepare('SELECT COUNT(*) AS count FROM good WHERE good_user_id=? AND good_post_id=?');
 			$check->execute(array($member['id'],$_POST['good']));
-			$duplicate = $check->fetch();　　
+			$duplicate = $check->fetch();
 
-			if($duplicate['count'] > 0) {
+			if ($duplicate['count'] > 0) {
 
 				$good = $db->prepare('DELETE FROM good WHERE good_user_id=? AND good_post_id=?');
 				$good->execute(array($member['id'],$_POST['good']));
@@ -159,6 +159,7 @@ if (!empty($_POST)) {
 	}
 }
 //いいね機能終わり
+
 
 //リツイート初め
 if (isset($_REQUEST['rep'])) {
