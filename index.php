@@ -123,6 +123,11 @@ if (!empty($_POST)) {
 			}
 		} else {
 
+			//リツイートがある投稿なのか
+			$repost_check = $db->prepare('SELECT * FROM posts WHERE re_post=?');
+			$repost_check->execute(array($_POST['good']));
+			$repost_p = $repost_check->fetch();
+
 			$check = $db->prepare('SELECT COUNT(*) AS count FROM good WHERE good_user_id=? AND good_post_id=?');
 			$check->execute(array($member['id'],$_POST['good']));
 			$duplicate = $check->fetch();
@@ -139,6 +144,11 @@ if (!empty($_POST)) {
 				$good_counts = $db->prepare('UPDATE posts SET good_count=? where id=?');
 				$good_counts->execute(array($point['sum'],$_POST['good']));
 
+					if ($repost_p['re_post'] = $_POST['good']) {
+						$good_counts = $db->prepare('UPDATE posts SET good_count=? where id=?');
+						$good_counts->execute(array($point['sum'],$repost_p['id']));
+					}
+
 				header('Location: index.php'); exit();
 
 			} else {
@@ -152,6 +162,11 @@ if (!empty($_POST)) {
 
 				$good_counts = $db->prepare('UPDATE posts SET good_count=? where id=?');
 				$good_counts->execute(array($point['sum'],$_POST['good']));
+
+				if ($repost_p['re_post'] = $_POST['good']) {
+					$good_counts = $db->prepare('UPDATE posts SET good_count=? where id=?');
+					$good_counts->execute(array($point['sum'],$repost_p['id']));
+				}
 
 				header('Location: index.php'); exit();
 			}
